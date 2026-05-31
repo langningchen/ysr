@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ysr"
+version = "0.2.0"
+description = "HSR云端自动化运行工具（模块化状态机版）"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "playwright>=1.40.0",
+    "opencv-python>=4.8.0",
+    "numpy>=1.20.0",
+    "pillow>=10.0.0",
+    "loguru>=0.7.0",
+    "pydantic>=2.0.0"
+]
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "I"]

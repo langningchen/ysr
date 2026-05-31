@@ -1,0 +1,7 @@
+[account]
+username = "username"
+password = "password"
+
+[queue]
+queue_pref = "threshold" # fast, normal, threshold
+threshold_minutes = 1.0

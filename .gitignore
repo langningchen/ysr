@@ -1,0 +1,8 @@
+.venv/
+.ipynb_checkpoints/
+__pycache__/
+ysr.egg-info/
+logs/
+repomix-output.xml
+cookies.json
+config.toml
