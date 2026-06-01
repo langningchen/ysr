@@ -121,8 +121,11 @@ class DailyWorkflowState(BaseState):
         logger.info("选择朋友支援...")
         success = await ingame.do_until_match(
             "help_selected.png",
-            lambda: manager.ingame_mod.click_template(
-                "friend.png",
+            lambda: asyncio.gather(
+                manager.ingame_mod.click_template(
+                    "friend.png",
+                ),
+                asyncio.sleep(2),
             ),
         )
         if not success:
@@ -269,7 +272,7 @@ class DailyWorkflowState(BaseState):
             return await handle_failure("领取最终奖励失败")
 
         logger.success("日常工作流完成")
-        return CLIState()
+        return None
 
 
 class CLIState(BaseState):

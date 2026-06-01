@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import Optional, Union, Tuple, Callable
+from typing import Optional, Tuple, Callable
 import cv2
 import numpy as np
 from playwright.async_api import Locator
@@ -93,35 +93,12 @@ class InGameModule(BaseModule):
                 if box is None:
                     logger.error("无法获取点击目标层的 CSS 宽高，请确认元素是否可见")
                     return False
-                css_w, css_h = box["width"], box["height"]
-
-                # 2. 获取视频流的原始分辨率
-                video_info = await self.page.evaluate("""() => {
-                        const video = document.querySelector('#app > div > video');
-                        return video ? { width: video.videoWidth, height: video.videoHeight } : null;
-                    }""")
-                if (
-                    not video_info
-                    or video_info["width"] == 0
-                    or video_info["height"] == 0
-                ):
-                    logger.error("无法获取视频流的原始分辨率宽高")
-                    return False
-                video_w, video_h = video_info["width"], video_info["height"]
-
-                # 3. 计算缩放比例并将坐标进行转换
-                scale_x = css_w / video_w
-                scale_y = css_h / video_h
 
                 target_x = max_loc[0] + temp_w // 2
                 target_y = max_loc[1] + temp_h // 2
-
-                print(
-                    css_w, css_h, video_w, video_h, scale_x, scale_y, target_x, target_y
-                )
                 location = {
-                    "x": target_x * scale_x,
-                    "y": target_y * scale_y,
+                    "x": target_x,
+                    "y": target_y,
                 }
                 await self._input_locator.click(position=location)
                 logger.debug(f"点击目标成功: {template_path} | 置信度: {max_val:.4f}")
@@ -129,8 +106,6 @@ class InGameModule(BaseModule):
 
             if time.time() - start_time >= timeout_limit:
                 return False
-
-            await asyncio.sleep(0.1)
 
     async def do_until_match(
         self,
@@ -185,7 +160,7 @@ class InGameModule(BaseModule):
             res_on = cv2.matchTemplate(screenshot, on_temp, cv2.TM_CCOEFF_NORMED)
             _, on_score, _, _ = cv2.minMaxLoc(res_on)
 
-            logger.info(
+            logger.debug(
                 f"[开关检测] 统一截图比对 | 关闭状态({off_template}): {off_score:.4f} | 开启状态({on_template}): {on_score:.4f}"
             )
 
@@ -196,10 +171,12 @@ class InGameModule(BaseModule):
                 return
 
             if off_score > on_score:
-                logger.info(f"检测到开关处于关闭状态，正在执行点击开启: {off_template}")
+                logger.debug(
+                    f"检测到开关处于关闭状态，正在执行点击开启: {off_template}"
+                )
                 await self.click_template(off_template, threshold=0.7)
             else:
-                logger.info("检测到开关已处于开启状态，无需重复点击。")
+                logger.debug("检测到开关已处于开启状态，无需重复点击。")
 
         except Exception as e:
             logger.error(f"开关同图智能比对时发生异常: {e}")
@@ -217,7 +194,7 @@ class InGameModule(BaseModule):
             raise FileNotFoundError(f"未找到模板图片文件: {template_path}")
 
         start_time = time.time()
-        logger.info(
+        logger.debug(
             f"正在等待目标元素出现: {template_path} (阈值: {threshold}, 超时: {timeout}s)..."
         )
 
@@ -233,91 +210,16 @@ class InGameModule(BaseModule):
             if max_val >= threshold:
                 elapsed = time.time() - start_time
                 logger.success(
-                    f"🎉 成功等待到目标元素: {template_path} | 置信度: {max_val:.4f} | 耗时: {elapsed:.2f}s"
+                    f"成功等待到目标元素: {template_path} | 置信度: {max_val:.4f} | 耗时: {elapsed:.2f}s"
                 )
                 return True
-
-            await asyncio.sleep(0.1)
 
         logger.warning(f"等待目标元素超时: {template_path}")
         return False
 
-    async def trigger_and_wait(
-        self,
-        trigger: Union[str, Callable],
-        next_template_path: str,
-        trigger_threshold: float = 0.8,
-        next_threshold: float = 0.8,
-        wait_timeout: float = 5.0,
-        max_retries: int = 3,
-    ) -> bool:
-        """
-        [通用动作触发与后置验证器]
-        解决界面没有按时发生改变时重试前一步的功能：
-        如果点击或按键执行后，后置条件 'next_template_path' 未在指定的 'wait_timeout' 秒内出现，
-        则回退并重新执行 'trigger'（可执行点击或发送系统按键），最大尝试次数限制为 max_retries 次。
-        """
-        logger.debug(
-            f"[重试容错] 准备执行动作 '{trigger}'，期望后置元素为 '{next_template_path}'..."
-        )
-        for attempt in range(1, max_retries + 1):
-            logger.debug(f"[重试容错] 动作触发尝试 ({attempt}/{max_retries})...")
-
-            success_trigger = False
-            if isinstance(trigger, str):
-                if trigger.endswith(".png"):
-                    success_trigger = await self.click_template(
-                        trigger, threshold=trigger_threshold
-                    )
-                else:
-                    await self.press_system_key(trigger)
-                    success_trigger = True
-            elif callable(trigger):
-                try:
-                    if asyncio.iscoroutinefunction(trigger):
-                        await trigger()
-                    else:
-                        trigger()
-                    success_trigger = True
-                except Exception as ex:
-                    logger.error(f"[重试容错] 调用前置回调函数失败: {ex}")
-                    success_trigger = False
-            else:
-                logger.error(f"[重试容错] 无法处理的前置动作类型: {type(trigger)}")
-                return False
-
-            if not success_trigger:
-                logger.warning(
-                    f"[重试容错] 前置触发点击或回调异常，稍作停顿后进入下一轮重试流程..."
-                )
-                await asyncio.sleep(1.0)
-                continue
-
-            logger.debug(
-                f"[重试容错] 前置动作执行成功，开始侦听后置条件 '{next_template_path}' (限时 {wait_timeout}s)..."
-            )
-            detected = await self.wait_for_template(
-                next_template_path, threshold=next_threshold, timeout=wait_timeout
-            )
-            if detected:
-                logger.debug(
-                    f"[重试容错] 🎉 验证通过！后置元素 '{next_template_path}' 已按预期显示。"
-                )
-                return True
-
-            logger.warning(
-                f"[重试容错] ⚠️ 界面加载超时！未检测到 '{next_template_path}'，判定上一指令未注册，触发回退重试..."
-            )
-            await asyncio.sleep(1.0)
-
-        logger.error(
-            f"[重试容错] ❌ 重试链耗尽！重复前置动作 {max_retries} 次仍未能检测到后置目标 '{next_template_path}'。"
-        )
-        return False
-
     async def press_system_key(self, key_name: str) -> None:
         assert self._input_locator is not None
-        logger.info(f"发送键盘事件: {key_name}")
+        logger.debug(f"发送键盘事件: {key_name}")
         await self._input_locator.press(key_name)
 
     async def create_template_interactively(
