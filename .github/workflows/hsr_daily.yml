@@ -52,6 +52,17 @@ jobs:
         run: |
           python main.py
 
+      - name: Run Automator
+        run: |
+          python main.py
+
+      - name: Upload Run Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hsr-execution-logs
+          path: logs/
+
       - name: Save cookies cache
         if: always()
         uses: actions/cache/save@v5

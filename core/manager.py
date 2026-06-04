@@ -1,4 +1,3 @@
-# core/manager.py
 import os
 from typing import Optional, Any
 from playwright.async_api import Page, Browser, BrowserContext, Playwright
@@ -54,7 +53,7 @@ class HSRGameManager:
             context_args["storage_state"] = cookie_file
 
         self.context = await self.browser.new_context(**context_args)
-        self.context.set_default_timeout(5000)
+        self.context.set_default_timeout(20000)
         self.context.set_default_navigation_timeout(30000)
         self.page = await self.context.new_page()
         logger.success("浏览器环境启动成功")
@@ -79,3 +78,8 @@ class HSRGameManager:
                 self.state = CLIState()
 
         logger.success("状态机引擎安全结束所有运行任务")
+
+    async def close(self) -> None:
+        if self.browser:
+            await self.browser.close()
+            logger.info("浏览器环境释放就绪。")
