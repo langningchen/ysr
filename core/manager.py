@@ -72,11 +72,10 @@ class HSRGameManager:
                 logger.exception(
                     f"状态机引擎在执行 {self.state.__class__.__name__} 时发生未捕获异常: {e}"
                 )
+
+                if os.getenv("GITHUB_ACTIONS") == "true":
+                    raise e
+
                 self.state = CLIState()
 
         logger.success("状态机引擎安全结束所有运行任务")
-
-    async def close(self) -> None:
-        if self.browser:
-
-            logger.info("浏览器环境释放就绪。")

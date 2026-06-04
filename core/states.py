@@ -1,6 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 import asyncio
+import os
 import sys
 import traceback
 from typing import Optional, TYPE_CHECKING
@@ -56,7 +57,8 @@ class DailyWorkflowState(BaseState):
 
         async def handle_failure(reason: str) -> BaseState:
             logger.error(f"日常工作流异常: {reason}")
-            return CLIState()
+            return ErrorState(reason)
+            # return CLIState()
 
         logger.info("打开星际和平指南...")
         success = await manager.ingame_mod.do_until_match(
@@ -315,4 +317,8 @@ class ErrorState(BaseState):
 
     async def run(self, _: HSRGameManager) -> Optional[BaseState]:
         logger.error(f"状态机遭遇异常: {self.reason}")
+
+        if os.getenv("GITHUB_ACTIONS") == "true":
+            raise RuntimeError(f"GitHub Actions 运行期间发生致命错误: {self.reason}")
+
         return CLIState()

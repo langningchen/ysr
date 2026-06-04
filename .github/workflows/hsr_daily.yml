@@ -43,8 +43,10 @@ jobs:
           playwright install-deps chromium
 
       - name: Create config.toml
+        env:
+          CONFIG_CONTENT: ${{ secrets.HSR_CONFIG_TOML }}
         run: |
-          echo "${{ secrets.HSR_CONFIG_TOML }}" > config.toml
+          python -c "import os; open('config.toml', 'w', encoding='utf-8').write(os.environ['CONFIG_CONTENT'])"
 
       - name: Run Automator
         run: |
