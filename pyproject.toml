@@ -17,6 +17,9 @@ dependencies = [
     "pydantic>=2.0.0"
 ]
 
+[tool.setuptools.packages.find]
+include = ["core", "modules", "utils"]
+
 [tool.ruff]
 line-length = 88
 select = ["E", "F", "I"]
