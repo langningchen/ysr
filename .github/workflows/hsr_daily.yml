@@ -32,6 +32,18 @@ jobs:
           restore-keys: |
             hsr-cookies-
 
+      - name: Create cookies.json from Secret if cache missed
+        if: steps.cache-cookies.outputs.cache-hit != 'true'
+        env:
+          COOKIES_CONTENT: ${{ secrets.HSR_COOKIES_JSON }}
+        run: |
+          if [ ! -z "$COOKIES_CONTENT" ]; then
+            python -c "import os; open('cookies.json', 'w', encoding='utf-8').write(os.environ['COOKIES_CONTENT'])"
+            echo "Loaded cookies.json from secret."
+          else
+            echo "No cookies.json found in cache or secret. Proceeding without cookies."
+          fi
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
