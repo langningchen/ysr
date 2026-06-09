@@ -29,8 +29,17 @@ class NotLoggedInState(BaseState):
 class LoggedInState(BaseState):
     async def run(self, manager: HSRGameManager) -> Optional[BaseState]:
         start_task = asyncio.create_task(manager.queue_mod.start())
-        await manager.queue_mod.wait_start()
-        start_task.cancel()
+        wait_task = asyncio.create_task(manager.queue_mod.wait_start())
+        done, pending = await asyncio.wait(
+            [start_task, wait_task], return_when=asyncio.FIRST_COMPLETED
+        )
+        for p in pending:
+            p.cancel()
+        if start_task in done:
+            exc = start_task.exception()
+            if exc:
+                logger.error("检测到排队操作流程发生异常！准备快速退出并保存 Trace...")
+                raise exc
         return InGameState()
 
 
