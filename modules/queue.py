@@ -21,13 +21,19 @@ class QueueModule(BaseModule):
         await self.monitor_queue_loop()
 
     async def remove_overlays(self) -> None:
-        locator = self.page.locator(
+        old_cancel_locator = self.page.locator(
             "body > div.van-popup.van-popup--center.van-dialog.van-dialog--round-button.clg-confirm-dialog.font-dynamic.clg-dialog-z-index > div.van-action-bar.van-safe-area-bottom.van-dialog__footer > button.van-button.van-button--warning.van-button--large.van-action-bar-button.van-action-bar-button--warning.van-action-bar-button--first.van-dialog__cancel"
         )
+        got_it_locator = self.page.locator("button:has-text('我知道了')")
+
         while True:
             try:
-                await locator.click()
-                logger.debug("检测到覆盖层并已成功移除")
+                if await old_cancel_locator.is_visible():
+                    await old_cancel_locator.click()
+                    logger.debug("检测到默认覆盖层并已成功移除")
+                if await got_it_locator.is_visible():
+                    await got_it_locator.click()
+                    logger.debug("检测到【收藏页面】提示，已点击“我知道了”")
             except asyncio.CancelledError:
                 return
             except Exception:
